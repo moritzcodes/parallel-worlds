@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MainViewport } from './components/MainViewport';
-import { CompassNavigation, CompactCompass } from './components/CompassNavigation';
+import { SingleMonitor, MultiMonitor } from './components/monitor';
 import { MemoryMap } from './components/MemoryMap';
-import { TimelineScrubber } from './components/TimelineScrubber';
-import { ModeToggle, KeyboardShortcutsHelp, ProjectInfo } from './components/ModeToggle';
+import { ModeToggle } from './components/ModeToggle';
 import { IntroTransition, SimpleTransition } from './components/TransitionEffect';
 import { VideoGenerator, GeneratorButton } from './components/VideoGenerator';
 import { useVideoSync } from './hooks/useVideoSync';
@@ -32,24 +30,20 @@ export default function ParallelWorldsViewer() {
     seek,
     setActiveTimeline: setActiveVideoTimeline,
     activeTimeline: videoActiveTimeline,
+    setMuted: setVideoMuted,
   } = useVideoSync('catch');
 
   const {
     activeTimeline,
     previousTimeline,
-    navigateTo,
     navigateToTimeline,
     memoryMap,
     navigationHistory,
-    canNavigate,
-    getTimelineInDirection,
     resetNavigation,
   } = useTimelineNavigation('catch', (event) => {
     // Handle navigation events
     setIsTransitioning(true);
     setActiveVideoTimeline(event.to);
-    audioManager.playTransition();
-    audioManager.playTimelineSignature(event.to);
     
     setTimeout(() => {
       setIsTransitioning(false);
@@ -57,6 +51,11 @@ export default function ParallelWorldsViewer() {
   });
 
   const audioManager = useAudioManager();
+
+  // Sync video mute state with audio manager
+  useEffect(() => {
+    setVideoMuted(audioManager.isMuted);
+  }, [audioManager.isMuted, setVideoMuted]);
 
   // Keyboard controls
   useEffect(() => {
@@ -77,7 +76,7 @@ export default function ParallelWorldsViewer() {
         case KEYBOARD_SHORTCUTS.toggleView:
           e.preventDefault();
           setViewMode((prev) => ({
-            type: prev.type === 'single' ? 'quad' : prev.type === 'quad' ? 'memory-map' : 'single',
+            type: prev.type === 'single' ? 'quad' : 'single',
           }));
           break;
       }
@@ -116,14 +115,19 @@ export default function ParallelWorldsViewer() {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleTimelineSelect = useCallback((id: TimelineId) => {
-    if (viewMode.type === 'quad') {
-      navigateToTimeline(id);
-      setViewMode({ type: 'single', focusedTimeline: id });
-    } else {
-      navigateToTimeline(id);
+  // Auto-play videos when intro is complete and videos are ready
+  useEffect(() => {
+    if (isIntroComplete && !videoState.isPlaying) {
+      const activeVideo = videoRefs[activeTimeline].current;
+      if (activeVideo && activeVideo.readyState >= 3) {
+        play();
+      }
     }
-  }, [viewMode.type, navigateToTimeline]);
+  }, [isIntroComplete, activeTimeline, videoRefs, videoState.isPlaying, play]);
+
+  const handleTimelineSelect = useCallback((id: TimelineId) => {
+    navigateToTimeline(id);
+  }, [navigateToTimeline]);
 
   const handleModeChange = useCallback((mode: ViewMode['type']) => {
     setViewMode({ type: mode });
@@ -164,63 +168,62 @@ export default function ParallelWorldsViewer() {
                 opacity: showControls ? 1 : 0,
               }}
               transition={{ duration: 0.3 }}
-              className="absolute left-0 right-0 top-0 z-30 flex items-center justify-between p-4 md:p-6"
+              className="absolute left-0 right-0 top-0 z-30 flex items-center justify-end p-4 md:p-6"
             >
-              {/* Logo / Title */}
-              <div className="flex items-center gap-3">
-                <motion.div
-                  className="text-2xl"
-                  animate={{
-                    y: [0, -3, 0],
-                    rotate: [-2, 2, -2],
-                  }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                  }}
-                >
-                  🎈
-                </motion.div>
-                <div>
-                  <h1 className="text-lg font-semibold text-white">Parallel Worlds</h1>
-                  <p className="text-xs text-zinc-500">Multi-timeline navigation</p>
-                </div>
-              </div>
+              
 
               {/* Right controls */}
               <div className="flex items-center gap-3">
-                <MemoryMap
-                  activeTimeline={activeTimeline}
-                  memoryMap={memoryMap}
-                  onTimelineSelect={handleTimelineSelect}
-                  navigationHistory={navigationHistory}
-                  compact
-                />
-                <div className="h-6 w-px bg-white/10" />
-                <GeneratorButton onClick={() => setShowGenerator(true)} />
                 <div className="h-6 w-px bg-white/10" />
                 <ModeToggle
                   currentMode={viewMode.type}
                   onModeChange={handleModeChange}
                 />
-                <KeyboardShortcutsHelp />
-                <ProjectInfo />
               </div>
             </motion.header>
 
             {/* Main viewport */}
             <main className="flex-1 p-4 pt-20 md:p-6 md:pt-24">
-              <div className="relative h-full overflow-hidden rounded-2xl border border-white/5 bg-black/20 backdrop-blur-sm">
-                <MainViewport
-                  activeTimeline={activeTimeline}
-                  previousTimeline={previousTimeline}
-                  viewMode={viewMode}
-                  isPlaying={videoState.isPlaying}
-                  onTimelineSelect={handleTimelineSelect}
-                  videoRefs={videoRefs}
-                  isTransitioning={isTransitioning}
-                />
+              <div className="relative flex h-full items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-black/20 backdrop-blur-sm p-4 md:p-8">
+                <AnimatePresence mode="wait">
+                  {viewMode.type === 'single' ? (
+                    <motion.div
+                      key="single-monitor"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.4 }}
+                      className="flex h-full w-full max-w-5xl items-center justify-center"
+                    >
+                      <SingleMonitor
+                        videoRef={videoRefs[activeTimeline]}
+                        timelineId={activeTimeline}
+                        isPlaying={videoState.isPlaying}
+                        isActive={true}
+                        muted={audioManager.isMuted}
+                        onPlayPause={togglePlayPause}
+                        className="h-full w-full max-h-full"
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="multi-monitor"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.4 }}
+                      className="h-full w-full max-w-7xl"
+                    >
+                      <MultiMonitor
+                        videoRefs={videoRefs}
+                        activeTimeline={activeTimeline}
+                        isPlaying={videoState.isPlaying}
+                        onTimelineSelect={handleTimelineSelect}
+                        className="h-full"
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </main>
 
@@ -232,46 +235,11 @@ export default function ParallelWorldsViewer() {
                 opacity: showControls ? 1 : 0,
               }}
               transition={{ duration: 0.3 }}
-              className="absolute bottom-0 left-0 right-0 z-30 p-4 md:p-6"
+              className="absolute bottom-0  right-16 z-30 p-4 md:p-6 pr-16"
             >
-              <div className="flex items-end justify-between gap-4">
-                {/* Compass navigation */}
-                <div className="hidden md:block">
-                  <CompassNavigation
-                    activeTimeline={activeTimeline}
-                    onNavigate={navigateTo}
-                    canNavigate={canNavigate}
-                    getTimelineInDirection={getTimelineInDirection}
-                    disabled={isTransitioning}
-                  />
-                </div>
-                <div className="md:hidden">
-                  <CompactCompass
-                    activeTimeline={activeTimeline}
-                    onNavigate={navigateTo}
-                    canNavigate={canNavigate}
-                    getTimelineInDirection={getTimelineInDirection}
-                    disabled={isTransitioning}
-                  />
-                </div>
-
-                {/* Timeline scrubber */}
-                <div className="flex-1 max-w-2xl rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-xl">
-                  <TimelineScrubber
-                    activeTimeline={activeTimeline}
-                    currentTime={videoState.currentTime}
-                    duration={videoState.duration}
-                    isPlaying={videoState.isPlaying}
-                    isMuted={audioManager.isMuted}
-                    onPlayPause={togglePlayPause}
-                    onSeek={seek}
-                    onMuteToggle={audioManager.toggleMute}
-                    onReset={handleReset}
-                  />
-                </div>
-
+              <div className="flex items-end justify-end gap-4">
                 {/* Memory map (desktop) */}
-                <div className="hidden w-64 lg:block">
+                <div className="hidden w-64 lg:block backdrop-blur-sm rounded-full overflow-hidden pr-16">
                   <MemoryMap
                     activeTimeline={activeTimeline}
                     memoryMap={memoryMap}

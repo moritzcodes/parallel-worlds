@@ -4,45 +4,45 @@ import type { Timeline, TimelineId, TransitionConfig, DecisionPoint } from '../t
 export const TIMELINES: Record<TimelineId, Timeline> = {
   catch: {
     id: 'catch',
-    name: 'The Catch',
+    name: 'Catch',
     description: 'A stranger reaches out and catches the balloon string just in time',
     position: 'north',
     color: '#10B981', // Emerald green - hope, intervention
     accentColor: '#34D399',
-    videoUrl: '/videos/catch.mp4',
+    videoUrl: '/videos/catch-2.mp4',
     audioSignature: '/audio/timeline-signatures/catch.mp3',
     duration: 15,
   },
   sky: {
     id: 'sky',
-    name: 'Into the Sky',
+    name: 'Sky',
     description: 'The balloon drifts upward, becoming a tiny red dot against the clouds',
     position: 'east',
     color: '#3B82F6', // Blue - sky, freedom, melancholy
     accentColor: '#60A5FA',
-    videoUrl: '/videos/sky.mp4',
+    videoUrl: '/videos/sky-2.mp4',
     audioSignature: '/audio/timeline-signatures/sky.mp3',
     duration: 15,
   },
   shared: {
     id: 'shared',
-    name: 'Shared Joy',
+    name: 'Joy',
     description: 'Another child catches the balloon, creating an unexpected friendship',
     position: 'south',
     color: '#F59E0B', // Amber - warmth, connection
     accentColor: '#FBBF24',
-    videoUrl: '/videos/shared.mp4',
+    videoUrl: '/videos/shared-2.mp4',
     audioSignature: '/audio/timeline-signatures/shared.mp3',
     duration: 15,
   },
   tangled: {
     id: 'tangled',
-    name: 'Tangled Fate',
+    name: 'Fate',
     description: 'The string catches on a street performer\'s props, creating chaos',
     position: 'west',
     color: '#EC4899', // Pink - chaos, unexpected
     accentColor: '#F472B6',
-    videoUrl: '/videos/tangled.mp4',
+    videoUrl: '/videos/tangled-3.mp4',
     audioSignature: '/audio/timeline-signatures/tangled.mp3',
     duration: 15,
   },

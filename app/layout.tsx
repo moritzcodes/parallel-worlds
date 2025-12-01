@@ -7,7 +7,7 @@ import "@fontsource/space-grotesk/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Parallel Worlds | Multi-Timeline Navigation",
+  title: "Parallel Worlds",
   description: "Experience simultaneous multi-timeline navigation through AI-generated video. Explore four parallel outcomes from a single decision point.",
   keywords: ["AI", "video", "timeline", "parallel worlds", "world model", "interactive"],
   authors: [{ name: "Parallel Worlds" }],

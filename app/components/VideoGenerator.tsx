@@ -236,8 +236,7 @@ export function GeneratorButton({ onClick }: { onClick: () => void }) {
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
-      <Sparkles className="h-4 w-4" />
-      Generate Videos
+      Choose Scenes
     </motion.button>
   );
 }

@@ -3,8 +3,14 @@
 import { motion } from 'framer-motion';
 import type { TimelineId, MemoryMapState, NavigationEvent } from '../types/timeline.types';
 import { TIMELINES, TIMELINE_ORDER } from '../constants/timelines';
-import { getMemoryNodeColor, getTimelineGlow } from '../utils/colorSystem';
+import { getMemoryNodeColor } from '../utils/colorSystem';
 import clsx from 'clsx';
+
+const CONTAINER_SIZE = 256;
+const ORBIT_RADIUS = 100; // Radius where nodes orbit
+const ITEM_SIZE = 48;
+const LINE_SIZE = 104;
+const GAP_BETWEEN_LINES = 32;
 
 interface MemoryMapProps {
   activeTimeline: TimelineId;
@@ -31,177 +37,145 @@ export function MemoryMap({
     );
   }
 
+  const center = CONTAINER_SIZE / 2;
+
   return (
-    <div className="relative rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur-xl">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-white">Memory Map</h3>
-          <p className="text-xs text-zinc-500">
-            {memoryMap.visitedTimelines.size} of 4 timelines explored
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-16 overflow-hidden rounded-full bg-white/10">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500"
-              initial={{ width: 0 }}
-              animate={{ width: `${memoryMap.explorationPercentage}%` }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
-          <span className="text-xs font-medium text-zinc-400">
-            {Math.round(memoryMap.explorationPercentage)}%
-          </span>
-        </div>
+    <div 
+      className="relative"
+      style={{ width: CONTAINER_SIZE, height: CONTAINER_SIZE }}
+    >
+      {/* Rotating gradient rings */}
+      <motion.div
+        className="absolute inset-0 opacity-25"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+      >
+        {Array.from({ length: 8 }, (_, index) => {
+          const size = LINE_SIZE + index * GAP_BETWEEN_LINES;
+          const rotation = -index * 16;
+
+          return (
+            <div
+              key={`gradient-${index}`}
+              className="absolute rounded-full"
+              style={{
+                width: size,
+                height: size,
+                top: center - size / 2,
+                left: center - size / 2,
+                transform: `rotate(${rotation}deg)`,
+              }}
+            >
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  padding: '1px',
+                  background: 'conic-gradient(rgba(109,46,255,0) 6.7%,rgba(158,122,255,.35) 20.8%,rgba(254,139,187,.7) 34.9%,#ffbd7a 49.99%,rgba(255,189,122,0) 50%)',
+                  WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  WebkitMaskComposite: 'xor',
+                  mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  maskComposite: 'exclude',
+                }}
+              />
+            </div>
+          );
+        })}
+      </motion.div>
+
+      {/* Static circular rings */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 8 }, (_, index) => {
+          const size = LINE_SIZE + index * GAP_BETWEEN_LINES;
+
+          return (
+            <div
+              key={`circle-${index}`}
+              className="absolute rounded-full"
+              style={{
+                width: size,
+                height: size,
+                top: center - size / 2,
+                left: center - size / 2,
+              }}
+            >
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  padding: '1px',
+                  background: 'rgba(235, 235, 255, 0.06)',
+                  WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  WebkitMaskComposite: 'xor',
+                  mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  maskComposite: 'exclude',
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Map visualization */}
-      <div className="relative h-48">
-        {/* Connection lines */}
-        <svg className="absolute inset-0 h-full w-full">
-          {/* Draw connections based on navigation history */}
-          {navigationHistory.map((event, index) => {
-            const fromPos = getNodePosition(event.from);
-            const toPos = getNodePosition(event.to);
-            
-            return (
-              <motion.line
-                key={`${event.from}-${event.to}-${index}`}
-                x1={`${fromPos.x}%`}
-                y1={`${fromPos.y}%`}
-                x2={`${toPos.x}%`}
-                y2={`${toPos.y}%`}
-                stroke={TIMELINES[event.to].color}
-                strokeWidth="2"
-                strokeOpacity="0.3"
-                strokeDasharray="4 4"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 0.5 }}
-              />
-            );
-          })}
-          
-          {/* Default connection web */}
-          {TIMELINE_ORDER.map((id, i) => {
-            const nextId = TIMELINE_ORDER[(i + 1) % TIMELINE_ORDER.length];
-            const fromPos = getNodePosition(id);
-            const toPos = getNodePosition(nextId);
-            
-            return (
-              <line
-                key={`default-${id}-${nextId}`}
-                x1={`${fromPos.x}%`}
-                y1={`${fromPos.y}%`}
-                x2={`${toPos.x}%`}
-                y2={`${toPos.y}%`}
-                stroke="white"
-                strokeWidth="1"
-                strokeOpacity="0.1"
-              />
-            );
-          })}
-        </svg>
-
-        {/* Timeline nodes */}
-        {TIMELINE_ORDER.map((id) => {
-          const timeline = TIMELINES[id];
+      {/* Timeline nodes - positioned absolutely from center */}
+      <motion.div
+        className="absolute inset-0"
+        animate={{ rotate: -360 }}
+        transition={{ duration: 80, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: 'center center' }}
+      >
+        {TIMELINE_ORDER.map((id, index) => {
           const isVisited = memoryMap.visitedTimelines.has(id);
           const isActive = id === activeTimeline;
-          const position = getNodePosition(id);
+          const timeline = TIMELINES[id];
+          const totalTimelines = TIMELINE_ORDER.length;
+
+          const angle = (index / totalTimelines) * 2 * Math.PI - Math.PI / 2; // Start from top
+          const x = center + ORBIT_RADIUS * Math.cos(angle) - ITEM_SIZE / 2;
+          const y = center + ORBIT_RADIUS * Math.sin(angle) - ITEM_SIZE / 2;
 
           return (
             <motion.button
               key={id}
               onClick={() => onTimelineSelect?.(id)}
               className={clsx(
-                'absolute flex flex-col items-center gap-2 -translate-x-1/2 -translate-y-1/2',
-                isVisited ? 'cursor-pointer' : 'cursor-not-allowed'
+                'absolute flex items-center justify-center rounded-full',
+                'bg-[rgba(39,39,42,1)] border border-white/10',
+                'bg-gradient-to-b from-white/5 to-transparent',
+                isVisited ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
               )}
               style={{
-                left: `${position.x}%`,
-                top: `${position.y}%`,
+                width: ITEM_SIZE,
+                height: ITEM_SIZE,
+                left: x,
+                top: y,
               }}
               whileHover={isVisited ? { scale: 1.1 } : {}}
               whileTap={isVisited ? { scale: 0.95 } : {}}
             >
-              {/* Node */}
+              {/* Counter-rotate to keep content upright */}
               <motion.div
-                className={clsx(
-                  'relative h-8 w-8 rounded-full transition-all',
-                  isActive && 'ring-2 ring-offset-2 ring-offset-black'
-                )}
-                style={{
-                  backgroundColor: getMemoryNodeColor(id, isVisited, isActive),
-                  boxShadow: isActive ? getTimelineGlow(id) : 'none',
-                  '--tw-ring-color': isActive ? timeline.color : 'transparent',
-                } as React.CSSProperties}
-                animate={isActive ? {
-                  scale: [1, 1.1, 1],
-                } : {}}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 80, repeat: Infinity, ease: 'linear' }}
+                className="flex items-center justify-center"
               >
-                {/* Inner glow for active */}
-                {isActive && (
-                  <motion.div
-                    className="absolute inset-0 rounded-full"
-                    style={{ backgroundColor: timeline.color }}
-                    animate={{ opacity: [0.3, 0.6, 0.3] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  />
-                )}
+                <span
+                  className={clsx(
+                    'text-[12px] font-medium',
+                    isActive ? 'text-white' : isVisited ? 'text-zinc-400' : 'text-zinc-600'
+                  )}
+                >
+                  {timeline.name}
+                </span>
               </motion.div>
-
-              {/* Label */}
-              <span
-                className={clsx(
-                  'text-xs font-medium transition-colors',
-                  isActive ? 'text-white' : isVisited ? 'text-zinc-400' : 'text-zinc-600'
-                )}
-              >
-                {timeline.name}
-              </span>
             </motion.button>
           );
         })}
+      </motion.div>
 
-        {/* Center decision point */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <motion.div
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs text-white"
-            animate={{
-              boxShadow: [
-                '0 0 10px rgba(255,255,255,0.2)',
-                '0 0 20px rgba(255,255,255,0.4)',
-                '0 0 10px rgba(255,255,255,0.2)',
-              ],
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            🎈
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="mt-4 flex justify-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-white" />
-          <span className="text-xs text-zinc-500">Active</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-white/60" />
-          <span className="text-xs text-zinc-500">Visited</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-white/20" />
-          <span className="text-xs text-zinc-500">Unexplored</span>
-        </div>
+      {/* Center element */}
+      <div 
+        className="absolute -translate-x-1/2 -translate-y-1/2"
+        style={{ left: center, top: center }}
+      >
+        <div className="h-12 w-12 rounded-full border border-white/10 bg-[rgba(39,39,42,0.5)]" />
       </div>
     </div>
   );

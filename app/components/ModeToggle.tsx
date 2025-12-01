@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Maximize2, Grid2X2, Map, Keyboard, Info } from 'lucide-react';
+import { Maximize2, Grid2X2, Keyboard, Info } from 'lucide-react';
 import type { ViewMode } from '../types/timeline.types';
 import { KEYBOARD_SHORTCUTS } from '../constants/timelines';
 import clsx from 'clsx';
@@ -15,7 +15,6 @@ interface ModeToggleProps {
 const MODES: { type: ViewMode['type']; Icon: typeof Maximize2; label: string }[] = [
   { type: 'single', Icon: Maximize2, label: 'Single View' },
   { type: 'quad', Icon: Grid2X2, label: 'Quad View' },
-  { type: 'memory-map', Icon: Map, label: 'Memory Map' },
 ];
 
 export function ModeToggle({ currentMode, onModeChange }: ModeToggleProps) {

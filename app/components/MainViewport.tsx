@@ -1,11 +1,13 @@
 'use client';
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause } from 'lucide-react';
 import type { TimelineId, ViewMode } from '../types/timeline.types';
 import { TIMELINES, TIMELINE_ORDER } from '../constants/timelines';
 import { getTimelineCSSVars, getTimelineGlow } from '../utils/colorSystem';
 import clsx from 'clsx';
+import React from 'react';
 
 interface MainViewportProps {
   activeTimeline: TimelineId;
@@ -15,6 +17,7 @@ interface MainViewportProps {
   onTimelineSelect?: (id: TimelineId) => void;
   videoRefs: Record<TimelineId, React.RefObject<HTMLVideoElement | null>>;
   isTransitioning?: boolean;
+  onPlayPause?: () => void;
 }
 
 export function MainViewport({
@@ -25,6 +28,7 @@ export function MainViewport({
   onTimelineSelect,
   videoRefs,
   isTransitioning = false,
+  onPlayPause,
 }: MainViewportProps) {
   const [loadedVideos, setLoadedVideos] = useState<Set<TimelineId>>(new Set());
 
@@ -53,11 +57,13 @@ export function MainViewport({
               )}
             >
               <VideoElement
+                key={`video-${id}`}
                 ref={videoRefs[id]}
                 timeline={TIMELINES[id]}
                 isActive={id === activeTimeline}
                 isPlaying={isPlaying && id === activeTimeline}
                 onLoad={() => handleVideoLoad(id)}
+                onPlayPause={id === activeTimeline ? onPlayPause : undefined}
               />
             </motion.div>
           ))}
@@ -103,6 +109,7 @@ export function MainViewport({
           style={getTimelineCSSVars(id)}
         >
           <VideoElement
+            key={`video-${id}`}
             ref={videoRefs[id]}
             timeline={TIMELINES[id]}
             isActive={id === activeTimeline}
@@ -152,20 +159,51 @@ interface VideoElementProps {
   isPlaying: boolean;
   onLoad?: () => void;
   muted?: boolean;
+  onPlayPause?: () => void;
 }
 
 const VideoElement = forwardRef<HTMLVideoElement, VideoElementProps>(
-  ({ timeline, isActive, isPlaying, onLoad, muted = false }, ref) => {
+  ({ timeline, isActive, isPlaying, onLoad, muted = false, onPlayPause }, ref) => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [hasError, setHasError] = useState(false);
+    const [showPlayButton, setShowPlayButton] = useState(false);
 
     const handleLoad = () => {
       setIsLoaded(true);
       onLoad?.();
     };
 
+    const handleVideoClick = () => {
+      if (onPlayPause) {
+        onPlayPause();
+        setShowPlayButton(true);
+        setTimeout(() => setShowPlayButton(false), 1000);
+      }
+    };
+
+    // Ensure video source is set correctly when timeline changes
+    useEffect(() => {
+      if (ref && 'current' in ref && ref.current) {
+        const videoElement = ref.current;
+        const expectedSrc = timeline.videoUrl.startsWith('http') 
+          ? timeline.videoUrl 
+          : window.location.origin + timeline.videoUrl;
+        
+        if (videoElement.src !== expectedSrc) {
+          videoElement.src = timeline.videoUrl;
+          setIsLoaded(false);
+          setHasError(false);
+        }
+      }
+    }, [timeline.videoUrl, timeline.id, ref]);
+
     return (
-      <div className="relative h-full w-full">
+      <div 
+        className="relative h-full w-full cursor-pointer"
+        onClick={handleVideoClick}
+        onMouseEnter={() => setShowPlayButton(true)}
+        onMouseLeave={() => setShowPlayButton(false)}
+      >
         {/* Placeholder/Loading state */}
         {!isLoaded && !hasError && (
           <div
@@ -204,6 +242,7 @@ const VideoElement = forwardRef<HTMLVideoElement, VideoElementProps>(
 
         {/* Video */}
         <video
+          key={timeline.id}
           ref={ref}
           src={timeline.videoUrl}
           className={clsx(
@@ -219,6 +258,35 @@ const VideoElement = forwardRef<HTMLVideoElement, VideoElementProps>(
 
         {/* Subtle vignette */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10" />
+
+        {/* Big Play/Pause Button */}
+        {isLoaded && onPlayPause && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ 
+              opacity: showPlayButton ? 1 : 0,
+              scale: showPlayButton ? 1 : 0.8,
+            }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 z-10 flex items-center justify-center"
+          >
+            <motion.button
+              className="pointer-events-auto flex h-24 w-24 items-center justify-center rounded-full bg-black/60 backdrop-blur-md transition-all hover:bg-black/80"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlayPause();
+              }}
+            >
+              {isPlaying ? (
+                <Pause className="h-12 w-12 text-white" />
+              ) : (
+                <Play className="h-12 w-12 text-white ml-1" fill="white" />
+              )}
+            </motion.button>
+          </motion.div>
+        )}
       </div>
     );
   }

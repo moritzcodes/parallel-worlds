@@ -6,4 +6,5 @@ export { TimelineScrubber, CompactScrubber } from './TimelineScrubber';
 export { ModeToggle, KeyboardShortcutsHelp, ProjectInfo } from './ModeToggle';
 export { TransitionEffect, SimpleTransition, IntroTransition } from './TransitionEffect';
 export { VideoGenerator, GeneratorButton } from './VideoGenerator';
+export { SingleMonitor, MultiMonitor } from './monitor';
 

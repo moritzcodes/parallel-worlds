@@ -23,10 +23,12 @@ interface UseVideoSyncReturn {
   setActiveTimeline: (id: TimelineId) => void;
   activeTimeline: TimelineId;
   isVideoReady: (id: TimelineId) => boolean;
+  setMuted: (muted: boolean) => void;
 }
 
 export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyncReturn {
   const [activeTimeline, setActiveTimelineState] = useState<TimelineId>(initialTimeline);
+  const [isGloballyMuted, setIsGloballyMuted] = useState(false);
   const [state, setState] = useState<VideoSyncState>({
     currentTime: 0,
     duration: TIMELINES[initialTimeline].duration,
@@ -176,23 +178,38 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
 
     setActiveTimelineState(id);
 
-    // Unmute the new active video after state update
+    // Unmute the new active video after state update (unless globally muted)
     setTimeout(() => {
       const newVideo = videoRefs[id].current;
       if (newVideo) {
-        newVideo.muted = false;
+        newVideo.muted = isGloballyMuted;
         newVideo.currentTime = currentTime;
         if (wasPlaying) {
           newVideo.play().catch(console.error);
         }
       }
     }, 0);
-  }, [getActiveVideo, state.isPlaying]);
+  }, [getActiveVideo, state.isPlaying, isGloballyMuted]);
 
   const isVideoReady = useCallback((id: TimelineId): boolean => {
     const video = videoRefs[id].current;
     return video ? video.readyState >= 3 : false;
   }, []);
+
+  const setMuted = useCallback((muted: boolean) => {
+    setIsGloballyMuted(muted);
+    TIMELINE_ORDER.forEach((id) => {
+      const video = videoRefs[id].current;
+      if (video) {
+        if (muted) {
+          video.muted = true;
+        } else {
+          // Unmute only the active timeline, keep others muted
+          video.muted = id !== activeTimeline;
+        }
+      }
+    });
+  }, [activeTimeline]);
 
   return {
     videoRefs,
@@ -205,6 +222,7 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
     setActiveTimeline,
     activeTimeline,
     isVideoReady,
+    setMuted,
   };
 }
 
