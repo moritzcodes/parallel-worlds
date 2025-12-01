@@ -12,6 +12,7 @@ interface CompassNavigationProps {
   canNavigate: (direction: TimelinePosition) => boolean;
   getTimelineInDirection: (direction: TimelinePosition) => TimelineId;
   disabled?: boolean;
+  onCenterClick?: () => void;
 }
 
 const DIRECTIONS: { position: TimelinePosition; Icon: typeof ChevronUp; angle: number }[] = [
@@ -27,6 +28,7 @@ export function CompassNavigation({
   canNavigate,
   getTimelineInDirection,
   disabled = false,
+  onCenterClick,
 }: CompassNavigationProps) {
   return (
     <div className="relative">
@@ -55,12 +57,28 @@ export function CompassNavigation({
           }}
         />
 
-        {/* Center dot */}
-        <motion.div
-          className="absolute h-4 w-4 rounded-full"
-          style={{ backgroundColor: TIMELINES[activeTimeline].color }}
-          layoutId="compass-center"
-        />
+        {/* Center circle - clickable if onCenterClick is provided */}
+        {onCenterClick ? (
+          <motion.button
+            onClick={onCenterClick}
+            disabled={disabled}
+            className="absolute inset-0 flex items-center justify-center rounded-full cursor-pointer transition-all hover:bg-white/5"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <motion.div
+              className="h-4 w-4 rounded-full"
+              style={{ backgroundColor: TIMELINES[activeTimeline].color }}
+              layoutId="compass-center"
+            />
+          </motion.button>
+        ) : (
+          <motion.div
+            className="absolute h-4 w-4 rounded-full"
+            style={{ backgroundColor: TIMELINES[activeTimeline].color }}
+            layoutId="compass-center"
+          />
+        )}
 
         {/* Direction buttons */}
         {DIRECTIONS.map(({ position, Icon, angle }) => {
@@ -232,5 +250,6 @@ export function CompactCompass({
     </div>
   );
 }
+
 
 

@@ -4,6 +4,7 @@ import React, { forwardRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { TimelineId } from '../types/timeline.types';
 import { TIMELINES } from '../constants/timelines';
+import { ZappingTransition } from './TransitionEffect';
 import clsx from 'clsx';
 
 // CRT effects are defined in globals.css
@@ -18,6 +19,9 @@ interface MonitorProps {
   onPlayPause?: () => void;
   className?: string;
   size?: 'small' | 'medium' | 'large';
+  isZapping?: boolean;
+  zappingFromColor?: string;
+  zappingToColor?: string;
 }
 
 // Single Monitor Component (for big view)
@@ -30,6 +34,9 @@ export function SingleMonitor({
   muted = false,
   onPlayPause,
   className,
+  isZapping = false,
+  zappingFromColor = '#10B981',
+  zappingToColor = '#3B82F6',
 }: MonitorProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -118,7 +125,6 @@ export function SingleMonitor({
                   'h-full w-full object-cover transition-opacity duration-300',
                   isLoaded ? 'opacity-100' : 'opacity-0'
                 )}
-                loop
                 autoPlay
                 playsInline
                 muted={muted || !isActive}
@@ -136,6 +142,13 @@ export function SingleMonitor({
                 </div>
               </div>
             )}
+
+            {/* Zapping Transition Effect - inside monitor screen */}
+            <ZappingTransition
+              isActive={isZapping}
+              fromColor={zappingFromColor}
+              toColor={zappingToColor}
+            />
 
             {/* CRT Scanlines - handled by crt-screen::before */}
 

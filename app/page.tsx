@@ -1,26 +1,31 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SingleMonitor, MultiMonitor } from './components/monitor';
 import { MemoryMap } from './components/MemoryMap';
 import { ModeToggle } from './components/ModeToggle';
-import { IntroTransition, SimpleTransition } from './components/TransitionEffect';
+import { IntroTransition } from './components/TransitionEffect';
 import { VideoGenerator, GeneratorButton } from './components/VideoGenerator';
 import RoleBasedAccessControl from './components/access';
 import { useVideoSync } from './hooks/useVideoSync';
 import { useTimelineNavigation } from './hooks/useTimelineNavigation';
 import { useAudioManager } from './hooks/useAudioManager';
 import type { ViewMode, TimelineId } from './types/timeline.types';
-import { TIMELINES, KEYBOARD_SHORTCUTS } from './constants/timelines';
+import { TIMELINES, KEYBOARD_SHORTCUTS, TIMELINE_ORDER } from './constants/timelines';
 
 export default function ParallelWorldsViewer() {
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'single' });
   const [isIntroComplete, setIsIntroComplete] = useState(false);
   const [isAccessGranted, setIsAccessGranted] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isZapping, setIsZapping] = useState(false);
+  const [zappingFromColor, setZappingFromColor] = useState('#10B981');
+  const [zappingToColor, setZappingToColor] = useState('#3B82F6');
   const [showControls, setShowControls] = useState(true);
   const [showGenerator, setShowGenerator] = useState(false);
+  
+  // Track if we're in auto-rotation mode to prevent double video switching
+  const isAutoRotatingRef = useRef(false);
 
   // Custom hooks
   const {
@@ -33,6 +38,7 @@ export default function ParallelWorldsViewer() {
     setActiveTimeline: setActiveVideoTimeline,
     activeTimeline: videoActiveTimeline,
     setMuted: setVideoMuted,
+    onVideoEnded,
   } = useVideoSync('catch');
 
   const {
@@ -43,13 +49,21 @@ export default function ParallelWorldsViewer() {
     navigationHistory,
     resetNavigation,
   } = useTimelineNavigation('catch', (event) => {
-    // Handle navigation events
-    setIsTransitioning(true);
+    // Skip video switching if auto-rotating (already handled)
+    if (isAutoRotatingRef.current) {
+      isAutoRotatingRef.current = false;
+      return;
+    }
+    
+    // Handle manual navigation events with zapping effect
+    setZappingFromColor(TIMELINES[event.from].color);
+    setZappingToColor(TIMELINES[event.to].color);
+    setIsZapping(true);
     setActiveVideoTimeline(event.to);
     
     setTimeout(() => {
-      setIsTransitioning(false);
-    }, 600);
+      setIsZapping(false);
+    }, 500);
   });
 
   const audioManager = useAudioManager();
@@ -58,6 +72,42 @@ export default function ParallelWorldsViewer() {
   useEffect(() => {
     setVideoMuted(audioManager.isMuted);
   }, [audioManager.isMuted, setVideoMuted]);
+
+  // Auto-rotate to next timeline when video ends
+  useEffect(() => {
+    if (!isAccessGranted) return;
+    
+    const cleanup = onVideoEnded((endedTimelineId) => {
+      const currentIndex = TIMELINE_ORDER.indexOf(endedTimelineId);
+      const nextIndex = (currentIndex + 1) % TIMELINE_ORDER.length;
+      const nextTimeline = TIMELINE_ORDER[nextIndex];
+      
+      // Set colors for zapping transition
+      setZappingFromColor(TIMELINES[endedTimelineId].color);
+      setZappingToColor(TIMELINES[nextTimeline].color);
+      
+      // Start zapping transition
+      setIsZapping(true);
+      
+      // Navigate to next timeline after the zapping effect starts
+      setTimeout(() => {
+        // Use setActiveVideoTimeline directly with startFromBeginning for auto-rotation
+        setActiveVideoTimeline(nextTimeline, { startFromBeginning: true });
+        
+        // Mark as auto-rotating so onNavigate callback skips video switching
+        isAutoRotatingRef.current = true;
+        // Update navigation state for the compass
+        navigateToTimeline(nextTimeline);
+      }, 250);
+      
+      // End zapping transition
+      setTimeout(() => {
+        setIsZapping(false);
+      }, 500);
+    });
+    
+    return cleanup;
+  }, [isAccessGranted, onVideoEnded, navigateToTimeline, setActiveVideoTimeline]);
 
   // Keyboard controls
   useEffect(() => {
@@ -261,6 +311,9 @@ export default function ParallelWorldsViewer() {
                         muted={audioManager.isMuted}
                         onPlayPause={togglePlayPause}
                         className="h-full w-full max-h-full"
+                        isZapping={isZapping}
+                        zappingFromColor={zappingFromColor}
+                        zappingToColor={zappingToColor}
                       />
                     </motion.div>
                   ) : (
@@ -303,6 +356,9 @@ export default function ParallelWorldsViewer() {
                     memoryMap={memoryMap}
                     onTimelineSelect={handleTimelineSelect}
                     navigationHistory={navigationHistory}
+                    onCenterClick={() => setViewMode((prev) => ({
+                      type: prev.type === 'single' ? 'quad' : 'single',
+                    }))}
                   />
                 </div>
               </div>
@@ -310,12 +366,6 @@ export default function ParallelWorldsViewer() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Transition effects */}
-      <SimpleTransition
-        isActive={isTransitioning}
-        color={TIMELINES[activeTimeline].color}
-      />
 
       {/* Click to show controls overlay */}
       {!showControls && (

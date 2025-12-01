@@ -94,14 +94,14 @@ const RoleBasedAccessControl = ({ onAccessGranted }: RoleBasedAccessControlProps
           }}
         >
           <svg
-            width="28"
-            height="28"
+            width="60"
+            height="60"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
-              d="M8.5 6.5C8.5 5.67 9.43 5.17 10.12 5.64L17.12 10.64C17.72 11.06 17.72 11.94 17.12 12.36L10.12 17.36C9.43 17.83 8.5 17.33 8.5 16.5V6.5Z"
+              d="M8 5v14l11-7z"
               fill="#fff"
             ></path>
           </svg>

@@ -18,6 +18,7 @@ interface MemoryMapProps {
   onTimelineSelect?: (id: TimelineId) => void;
   navigationHistory: NavigationEvent[];
   compact?: boolean;
+  onCenterClick?: () => void;
 }
 
 export function MemoryMap({
@@ -26,6 +27,7 @@ export function MemoryMap({
   onTimelineSelect,
   navigationHistory,
   compact = false,
+  onCenterClick,
 }: MemoryMapProps) {
   if (compact) {
     return (
@@ -171,12 +173,24 @@ export function MemoryMap({
       </motion.div>
 
       {/* Center element */}
-      <div 
-        className="absolute -translate-x-1/2 -translate-y-1/2"
-        style={{ left: center, top: center }}
-      >
-        <div className="h-12 w-12 rounded-full border border-white/10 bg-[rgba(39,39,42,0.5)]" />
-      </div>
+      {onCenterClick ? (
+        <motion.button
+          onClick={onCenterClick}
+          className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all hover:bg-white/5 rounded-full"
+          style={{ left: center, top: center }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <div className="h-12 w-12 rounded-full border border-white/10 bg-[rgba(39,39,42,0.5)]" />
+        </motion.button>
+      ) : (
+        <div 
+          className="absolute -translate-x-1/2 -translate-y-1/2"
+          style={{ left: center, top: center }}
+        >
+          <div className="h-12 w-12 rounded-full border border-white/10 bg-[rgba(39,39,42,0.5)]" />
+        </div>
+      )}
     </div>
   );
 }

@@ -229,6 +229,154 @@ export function SimpleTransition({
   );
 }
 
+// TV Channel Zapping Transition - mimics old CRT channel switching
+export function ZappingTransition({
+  isActive,
+  fromColor,
+  toColor,
+  className = '',
+}: {
+  isActive: boolean;
+  fromColor: string;
+  toColor: string;
+  className?: string;
+}) {
+  return (
+    <AnimatePresence>
+      {isActive && (
+        <motion.div
+          className={`pointer-events-none absolute inset-0 z-50 overflow-hidden rounded-lg ${className}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.05 }}
+        >
+          {/* Static noise/snow effect */}
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+              backgroundSize: '200px 200px',
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.8, 0.6, 0.9, 0.3, 0] }}
+            transition={{ duration: 0.35, times: [0, 0.1, 0.2, 0.3, 0.6, 1] }}
+          />
+
+          {/* Horizontal scan line sweep */}
+          <motion.div
+            className="absolute left-0 right-0 h-1"
+            style={{
+              background: `linear-gradient(90deg, transparent, ${toColor}, white, ${toColor}, transparent)`,
+              boxShadow: `0 0 20px ${toColor}, 0 0 40px ${toColor}`,
+            }}
+            initial={{ top: '50%', scaleY: 20, opacity: 1 }}
+            animate={{ 
+              top: ['50%', '0%', '100%', '50%'],
+              scaleY: [20, 1, 1, 20],
+              opacity: [1, 1, 1, 0],
+            }}
+            transition={{ duration: 0.35, times: [0, 0.3, 0.7, 1], ease: 'easeInOut' }}
+          />
+
+          {/* Color fringing / RGB separation effect */}
+          <motion.div
+            className="absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.6, 0] }}
+            transition={{ duration: 0.2 }}
+          >
+            <motion.div
+              className="absolute inset-0"
+              style={{ background: `${fromColor}40`, mixBlendMode: 'screen' }}
+              animate={{ x: [-10, 10, 0] }}
+              transition={{ duration: 0.15 }}
+            />
+            <motion.div
+              className="absolute inset-0"
+              style={{ background: `${toColor}40`, mixBlendMode: 'screen' }}
+              animate={{ x: [10, -10, 0] }}
+              transition={{ duration: 0.15 }}
+            />
+          </motion.div>
+
+          {/* Flash of white/color */}
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(180deg, ${toColor}60, white, ${toColor}60)`,
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 0.15, times: [0, 0.3, 1] }}
+          />
+
+          {/* Horizontal glitch bars */}
+          <motion.div
+            className="absolute inset-0 overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 0.25 }}
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute h-2 left-0 right-0"
+                style={{
+                  top: `${10 + i * 12}%`,
+                  background: `linear-gradient(90deg, transparent 0%, ${i % 2 === 0 ? fromColor : toColor}80 ${Math.random() * 30 + 10}%, ${i % 2 === 0 ? toColor : fromColor}80 ${Math.random() * 30 + 60}%, transparent 100%)`,
+                }}
+                animate={{
+                  x: [0, (i % 2 === 0 ? 1 : -1) * (Math.random() * 100 + 50), 0],
+                  scaleX: [1, 1.5, 1],
+                }}
+                transition={{
+                  duration: 0.2,
+                  delay: i * 0.02,
+                }}
+              />
+            ))}
+          </motion.div>
+
+          {/* CRT turn-off/on collapse effect */}
+          <motion.div
+            className="absolute inset-0 bg-black"
+            initial={{ scaleY: 0 }}
+            animate={{ 
+              scaleY: [0, 1, 1, 0],
+              scaleX: [1, 1, 0.002, 1],
+            }}
+            transition={{ 
+              duration: 0.4,
+              times: [0, 0.2, 0.5, 1],
+              ease: [0.4, 0, 0.2, 1],
+            }}
+          />
+
+          {/* Center bright line during collapse */}
+          <motion.div
+            className="absolute left-0 right-0 top-1/2 -translate-y-1/2"
+            style={{
+              height: 2,
+              background: `linear-gradient(90deg, transparent, ${toColor}, white, ${toColor}, transparent)`,
+              boxShadow: `0 0 30px ${toColor}, 0 0 60px white`,
+            }}
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ 
+              opacity: [0, 0, 1, 1, 0],
+              scaleX: [0, 0, 1, 1, 0],
+            }}
+            transition={{ 
+              duration: 0.4,
+              times: [0, 0.2, 0.35, 0.65, 1],
+            }}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 // Loading/intro transition
 export function IntroTransition({
   isComplete,

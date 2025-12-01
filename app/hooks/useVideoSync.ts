@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import type { TimelineId, VideoRef } from '../types/timeline.types';
 import { TIMELINES, TIMELINE_ORDER } from '../constants/timelines';
 
@@ -12,6 +12,10 @@ interface VideoSyncState {
   progress: number;
 }
 
+interface SetActiveTimelineOptions {
+  startFromBeginning?: boolean;
+}
+
 interface UseVideoSyncReturn {
   videoRefs: Record<TimelineId, React.RefObject<HTMLVideoElement | null>>;
   state: VideoSyncState;
@@ -20,10 +24,11 @@ interface UseVideoSyncReturn {
   togglePlayPause: () => void;
   seek: (time: number) => void;
   seekToProgress: (progress: number) => void;
-  setActiveTimeline: (id: TimelineId) => void;
+  setActiveTimeline: (id: TimelineId, options?: SetActiveTimelineOptions) => void;
   activeTimeline: TimelineId;
   isVideoReady: (id: TimelineId) => boolean;
   setMuted: (muted: boolean) => void;
+  onVideoEnded: (callback: (timelineId: TimelineId) => void) => () => void;
 }
 
 export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyncReturn {
@@ -43,12 +48,15 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
   const sharedRef = useRef<HTMLVideoElement>(null);
   const tangledRef = useRef<HTMLVideoElement>(null);
 
-  const videoRefs: Record<TimelineId, React.RefObject<HTMLVideoElement | null>> = {
+  // Ref to store video ended callbacks
+  const endedCallbacksRef = useRef<Set<(timelineId: TimelineId) => void>>(new Set());
+
+  const videoRefs: Record<TimelineId, React.RefObject<HTMLVideoElement | null>> = useMemo(() => ({
     catch: catchRef,
     sky: skyRef,
     shared: sharedRef,
     tangled: tangledRef,
-  };
+  }), []);
 
   const getActiveVideo = useCallback((): HTMLVideoElement | null => {
     return videoRefs[activeTimeline].current;
@@ -90,12 +98,20 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
       setState((prev) => ({ ...prev, isBuffering: false }));
     };
 
+    const handleEnded = () => {
+      // Call all registered ended callbacks
+      endedCallbacksRef.current.forEach((callback) => {
+        callback(activeTimeline);
+      });
+    };
+
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('durationchange', handleDurationChange);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('playing', handlePlaying);
+    video.addEventListener('ended', handleEnded);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
@@ -104,6 +120,7 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('ended', handleEnded);
     };
   }, [activeTimeline, getActiveVideo]);
 
@@ -163,9 +180,9 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
     }
   }, [getActiveVideo, syncAllVideos]);
 
-  const setActiveTimeline = useCallback((id: TimelineId) => {
+  const setActiveTimeline = useCallback((id: TimelineId, options?: { startFromBeginning?: boolean }) => {
     const currentVideo = getActiveVideo();
-    const currentTime = currentVideo?.currentTime || 0;
+    const currentTime = options?.startFromBeginning ? 0 : (currentVideo?.currentTime || 0);
     const wasPlaying = state.isPlaying;
 
     // Mute all videos first
@@ -179,17 +196,29 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
     setActiveTimelineState(id);
 
     // Unmute the new active video after state update (unless globally muted)
-    setTimeout(() => {
-      const newVideo = videoRefs[id].current;
-      if (newVideo) {
-        newVideo.muted = isGloballyMuted;
-        newVideo.currentTime = currentTime;
-        if (wasPlaying) {
+    const newVideo = videoRefs[id].current;
+    if (newVideo) {
+      newVideo.muted = isGloballyMuted;
+      newVideo.currentTime = currentTime;
+      
+      if (wasPlaying) {
+        // Wait for the video to be ready before playing
+        const handleCanPlay = () => {
+          newVideo.play().catch(() => {
+            // Retry once after a short delay if it fails
+            setTimeout(() => newVideo.play().catch(console.error), 100);
+          });
+          newVideo.removeEventListener('canplay', handleCanPlay);
+        };
+        
+        if (newVideo.readyState >= 3) {
           newVideo.play().catch(console.error);
+        } else {
+          newVideo.addEventListener('canplay', handleCanPlay, { once: true });
         }
       }
-    }, 0);
-  }, [getActiveVideo, state.isPlaying, isGloballyMuted]);
+    }
+  }, [getActiveVideo, state.isPlaying, isGloballyMuted, videoRefs]);
 
   const isVideoReady = useCallback((id: TimelineId): boolean => {
     const video = videoRefs[id].current;
@@ -209,7 +238,16 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
         }
       }
     });
-  }, [activeTimeline]);
+  }, [activeTimeline, videoRefs]);
+
+  // Register callback for when video ends
+  const onVideoEnded = useCallback((callback: (timelineId: TimelineId) => void) => {
+    endedCallbacksRef.current.add(callback);
+    // Return cleanup function
+    return () => {
+      endedCallbacksRef.current.delete(callback);
+    };
+  }, []);
 
   return {
     videoRefs,
@@ -223,6 +261,7 @@ export function useVideoSync(initialTimeline: TimelineId = 'catch'): UseVideoSyn
     activeTimeline,
     isVideoReady,
     setMuted,
+    onVideoEnded,
   };
 }
 
