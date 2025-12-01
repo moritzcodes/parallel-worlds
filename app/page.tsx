@@ -7,6 +7,7 @@ import { MemoryMap } from './components/MemoryMap';
 import { ModeToggle } from './components/ModeToggle';
 import { IntroTransition, SimpleTransition } from './components/TransitionEffect';
 import { VideoGenerator, GeneratorButton } from './components/VideoGenerator';
+import RoleBasedAccessControl from './components/access';
 import { useVideoSync } from './hooks/useVideoSync';
 import { useTimelineNavigation } from './hooks/useTimelineNavigation';
 import { useAudioManager } from './hooks/useAudioManager';
@@ -16,6 +17,7 @@ import { TIMELINES, KEYBOARD_SHORTCUTS } from './constants/timelines';
 export default function ParallelWorldsViewer() {
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'single' });
   const [isIntroComplete, setIsIntroComplete] = useState(false);
+  const [isAccessGranted, setIsAccessGranted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showGenerator, setShowGenerator] = useState(false);
@@ -157,15 +159,15 @@ export default function ParallelWorldsViewer() {
     };
   }, []);
 
-  // Auto-play videos when intro is complete and videos are ready
-  useEffect(() => {
-    if (isIntroComplete && !videoState.isPlaying) {
-      const activeVideo = videoRefs[activeTimeline].current;
-      if (activeVideo && activeVideo.readyState >= 3) {
-        play();
-      }
+  // Handle access granted - trigger autoplay
+  const handleAccessGranted = useCallback(() => {
+    setIsAccessGranted(true);
+    // Trigger play on user interaction (required for autoplay)
+    const activeVideo = videoRefs[activeTimeline].current;
+    if (activeVideo && activeVideo.readyState >= 3) {
+      play();
     }
-  }, [isIntroComplete, activeTimeline, videoRefs, videoState.isPlaying, play]);
+  }, [activeTimeline, videoRefs, play]);
 
   const handleTimelineSelect = useCallback((id: TimelineId) => {
     navigateToTimeline(id);
@@ -185,6 +187,21 @@ export default function ParallelWorldsViewer() {
       {/* Intro transition */}
       <IntroTransition isComplete={isIntroComplete} />
 
+      {/* Access control screen */}
+      <AnimatePresence>
+        {isIntroComplete && !isAccessGranted && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#09090B]"
+          >
+            <RoleBasedAccessControl onAccessGranted={handleAccessGranted} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Background gradient */}
       <div 
         className="pointer-events-none absolute inset-0 transition-colors duration-1000"
@@ -195,7 +212,7 @@ export default function ParallelWorldsViewer() {
 
       {/* Main content */}
       <AnimatePresence>
-        {isIntroComplete && (
+        {isIntroComplete && isAccessGranted && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -210,13 +227,12 @@ export default function ParallelWorldsViewer() {
                 opacity: showControls ? 1 : 0,
               }}
               transition={{ duration: 0.3 }}
-              className="absolute left-0 right-0 top-0 z-30 flex items-center justify-end p-4 md:p-6"
+              className="absolute left-0 right-0 top-0 z-30 flex items-center justify-end p-8"
             >
               
 
               {/* Right controls */}
               <div className="flex items-center gap-3">
-                <div className="h-6 w-px bg-white/10" />
                 <ModeToggle
                   currentMode={viewMode.type}
                   onModeChange={handleModeChange}
@@ -225,7 +241,7 @@ export default function ParallelWorldsViewer() {
             </motion.header>
 
             {/* Main viewport */}
-            <main className="flex-1 p-4 pt-20 md:p-6 md:pt-24">
+            <main className="flex-1 p-4 md:p-6">
               <div className="relative flex h-full items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-black/20 backdrop-blur-sm p-4 md:p-8">
                 <AnimatePresence mode="wait">
                   {viewMode.type === 'single' ? (
