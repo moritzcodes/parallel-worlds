@@ -247,50 +247,19 @@ export function IntroTransition({
           transition={{ duration: 0.8, ease: 'easeInOut' }}
           onAnimationComplete={onComplete}
         >
-          <motion.div
-            className="flex flex-col items-center gap-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.5 }}
-          >
-            {/* Balloon icon */}
+          {/* Simple black and white progress bar */}
+          <div className="h-1 w-64 overflow-hidden rounded-full bg-white/20">
             <motion.div
-              className="text-6xl"
-              animate={{
-                y: [0, -10, 0],
-                rotate: [-5, 5, -5],
-              }}
+              className="h-full rounded-full bg-white"
+              initial={{ x: '-100%' }}
+              animate={{ x: '100%' }}
               transition={{
-                duration: 2,
+                duration: 1.5,
                 repeat: Infinity,
-                ease: 'easeInOut',
+                ease: 'linear',
               }}
-            >
-              🎈
-            </motion.div>
-
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-white">Parallel Worlds</h1>
-              <p className="mt-2 text-sm text-zinc-500">
-                Loading timelines...
-              </p>
-            </div>
-
-            {/* Loading bar */}
-            <div className="h-1 w-48 overflow-hidden rounded-full bg-white/10">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-blue-500 to-pink-500"
-                initial={{ x: '-100%' }}
-                animate={{ x: '100%' }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  ease: 'linear',
-                }}
-              />
-            </div>
-          </motion.div>
+            />
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

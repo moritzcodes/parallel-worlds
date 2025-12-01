@@ -113,6 +113,7 @@ export function SingleMonitor({
               <video
                 ref={videoRef}
                 src={src}
+                preload="auto"
                 className={clsx(
                   'h-full w-full object-cover transition-opacity duration-300',
                   isLoaded ? 'opacity-100' : 'opacity-0'

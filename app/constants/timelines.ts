@@ -20,7 +20,7 @@ export const TIMELINES: Record<TimelineId, Timeline> = {
     position: 'east',
     color: '#3B82F6', // Blue - sky, freedom, melancholy
     accentColor: '#60A5FA',
-    videoUrl: '/videos/sky-2.mp4',
+    videoUrl: '/videos/sky-3.mp4',
     audioSignature: '/audio/timeline-signatures/sky.mp3',
     duration: 15,
   },

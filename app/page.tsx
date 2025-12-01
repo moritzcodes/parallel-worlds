@@ -107,12 +107,54 @@ export default function ParallelWorldsViewer() {
     };
   }, [videoState.isPlaying]);
 
-  // Complete intro after delay
+  // Prefetch all videos on mount
   useEffect(() => {
+    const prefetchVideos = Object.values(TIMELINES).map((timeline) => {
+      const video = document.createElement('video');
+      video.src = timeline.videoUrl;
+      video.preload = 'auto';
+      video.muted = true;
+      video.style.display = 'none';
+      document.body.appendChild(video);
+      return video;
+    });
+
+    // Wait for all videos to be ready before completing intro
+    let loadedCount = 0;
+    const totalVideos = prefetchVideos.length;
+    
+    const checkAllLoaded = () => {
+      loadedCount++;
+      if (loadedCount >= totalVideos) {
+        setTimeout(() => {
+          setIsIntroComplete(true);
+        }, 500);
+      }
+    };
+
+    prefetchVideos.forEach((video) => {
+      if (video.readyState >= 3) {
+        checkAllLoaded();
+      } else {
+        video.addEventListener('canplaythrough', checkAllLoaded, { once: true });
+        video.addEventListener('error', checkAllLoaded, { once: true });
+        video.load();
+      }
+    });
+
+    // Fallback timeout
     const timer = setTimeout(() => {
       setIsIntroComplete(true);
-    }, 2500);
-    return () => clearTimeout(timer);
+    }, 5000);
+
+    return () => {
+      clearTimeout(timer);
+      prefetchVideos.forEach((video) => {
+        video.removeEventListener('canplaythrough', checkAllLoaded);
+        video.removeEventListener('error', checkAllLoaded);
+        document.body.removeChild(video);
+      });
+    };
   }, []);
 
   // Auto-play videos when intro is complete and videos are ready
