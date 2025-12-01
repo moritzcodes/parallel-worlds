@@ -17,6 +17,7 @@ interface MonitorProps {
   isActive?: boolean;
   muted?: boolean;
   onPlayPause?: () => void;
+  onVideoEnded?: () => void;
   className?: string;
   size?: 'small' | 'medium' | 'large';
   isZapping?: boolean;
@@ -33,6 +34,7 @@ export function SingleMonitor({
   isActive = true,
   muted = false,
   onPlayPause,
+  onVideoEnded,
   className,
   isZapping = false,
   zappingFromColor = '#10B981',
@@ -131,6 +133,7 @@ export function SingleMonitor({
                 onLoadedData={handleLoad}
                 onError={handleError}
                 onClick={onPlayPause}
+                onEnded={onVideoEnded}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-black">

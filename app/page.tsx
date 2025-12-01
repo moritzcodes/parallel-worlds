@@ -38,7 +38,6 @@ export default function ParallelWorldsViewer() {
     setActiveTimeline: setActiveVideoTimeline,
     activeTimeline: videoActiveTimeline,
     setMuted: setVideoMuted,
-    onVideoEnded,
   } = useVideoSync('catch');
 
   const {
@@ -73,41 +72,37 @@ export default function ParallelWorldsViewer() {
     setVideoMuted(audioManager.isMuted);
   }, [audioManager.isMuted, setVideoMuted]);
 
-  // Auto-rotate to next timeline when video ends
-  useEffect(() => {
+  // Handle video ended - auto-rotate to next timeline
+  const handleVideoEnded = useCallback(() => {
     if (!isAccessGranted) return;
     
-    const cleanup = onVideoEnded((endedTimelineId) => {
-      const currentIndex = TIMELINE_ORDER.indexOf(endedTimelineId);
-      const nextIndex = (currentIndex + 1) % TIMELINE_ORDER.length;
-      const nextTimeline = TIMELINE_ORDER[nextIndex];
-      
-      // Set colors for zapping transition
-      setZappingFromColor(TIMELINES[endedTimelineId].color);
-      setZappingToColor(TIMELINES[nextTimeline].color);
-      
-      // Start zapping transition
-      setIsZapping(true);
-      
-      // Navigate to next timeline after the zapping effect starts
-      setTimeout(() => {
-        // Use setActiveVideoTimeline directly with startFromBeginning for auto-rotation
-        setActiveVideoTimeline(nextTimeline, { startFromBeginning: true });
-        
-        // Mark as auto-rotating so onNavigate callback skips video switching
-        isAutoRotatingRef.current = true;
-        // Update navigation state for the compass
-        navigateToTimeline(nextTimeline);
-      }, 250);
-      
-      // End zapping transition
-      setTimeout(() => {
-        setIsZapping(false);
-      }, 500);
-    });
+    const currentIndex = TIMELINE_ORDER.indexOf(activeTimeline);
+    const nextIndex = (currentIndex + 1) % TIMELINE_ORDER.length;
+    const nextTimeline = TIMELINE_ORDER[nextIndex];
     
-    return cleanup;
-  }, [isAccessGranted, onVideoEnded, navigateToTimeline, setActiveVideoTimeline]);
+    // Set colors for zapping transition
+    setZappingFromColor(TIMELINES[activeTimeline].color);
+    setZappingToColor(TIMELINES[nextTimeline].color);
+    
+    // Start zapping transition
+    setIsZapping(true);
+    
+    // Navigate to next timeline after the zapping effect starts
+    setTimeout(() => {
+      // Use setActiveVideoTimeline directly with startFromBeginning for auto-rotation
+      setActiveVideoTimeline(nextTimeline, { startFromBeginning: true });
+      
+      // Mark as auto-rotating so onNavigate callback skips video switching
+      isAutoRotatingRef.current = true;
+      // Update navigation state for the compass
+      navigateToTimeline(nextTimeline);
+    }, 250);
+    
+    // End zapping transition
+    setTimeout(() => {
+      setIsZapping(false);
+    }, 500);
+  }, [isAccessGranted, activeTimeline, navigateToTimeline, setActiveVideoTimeline]);
 
   // Keyboard controls
   useEffect(() => {
@@ -310,6 +305,7 @@ export default function ParallelWorldsViewer() {
                         isActive={true}
                         muted={audioManager.isMuted}
                         onPlayPause={togglePlayPause}
+                        onVideoEnded={handleVideoEnded}
                         className="h-full w-full max-h-full"
                         isZapping={isZapping}
                         zappingFromColor={zappingFromColor}
