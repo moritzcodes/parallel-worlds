@@ -23,6 +23,7 @@ interface MonitorProps {
   isZapping?: boolean;
   zappingFromColor?: string;
   zappingToColor?: string;
+  loop?: boolean;
 }
 
 // Single Monitor Component (for big view)
@@ -39,6 +40,7 @@ export function SingleMonitor({
   isZapping = false,
   zappingFromColor = '#10B981',
   zappingToColor = '#3B82F6',
+  loop = false,
 }: MonitorProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -91,19 +93,33 @@ export function SingleMonitor({
   }, [isPlaying, isActive, videoRef]);
 
   return (
-    <div className={clsx('relative flex items-center justify-center', className)}>
+    <div className={clsx('relative flex items-center justify-center w-full h-full overflow-hidden', className)}>
       {/* Monitor Frame SVG - maintain aspect ratio but fit container */}
       <div 
-        className="relative w-full"
-        style={{ 
-          aspectRatio: '360/231',
-          maxWidth: '100%',
-          maxHeight: '100%',
-          height: '100%',
-          width: 'auto',
+        className="relative w-full h-full"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gridTemplateRows: '1fr',
+          minWidth: 0,
+          minHeight: 0,
         }}
       >
-        <ScreenFrameSVG className="w-full h-full" />
+        <div 
+          className="relative overflow-hidden justify-self-center self-center"
+          style={{ 
+            aspectRatio: '360/231',
+            width: '100%',
+            height: 'auto',
+            maxWidth: '100%',
+            maxHeight: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
+        <ScreenFrameSVG 
+          className="w-full h-full" 
+          preserveAspectRatio="xMidYMid meet"
+        />
         
         {/* Video Screen Area - positioned relative to 360x231 base */}
         <div 
@@ -113,10 +129,12 @@ export function SingleMonitor({
             left: '5.6%',  // 20/360
             right: '5.6%', // 20/360
             height: '60.6%', // 140/231
+            width: 'auto',
+            boxSizing: 'border-box',
           }}
         >
           {/* CRT Screen Effects Container */}
-          <div className="relative h-full w-full crt-screen">
+          <div className="relative h-full w-full crt-screen overflow-hidden rounded-lg">
             {/* Video Element */}
             {!hasError ? (
               <video
@@ -124,11 +142,18 @@ export function SingleMonitor({
                 src={src}
                 preload="auto"
                 className={clsx(
-                  'h-full w-full object-cover transition-opacity duration-300',
+                  'absolute inset-0 h-full w-full object-cover transition-opacity duration-300',
                   isLoaded ? 'opacity-100' : 'opacity-0'
                 )}
+                style={{
+                  display: 'block',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'cover',
+                }}
                 autoPlay
                 playsInline
+                loop={loop}
                 muted={muted || !isActive}
                 onLoadedData={handleLoad}
                 onError={handleError}
@@ -188,6 +213,7 @@ export function SingleMonitor({
             <div className="pointer-events-none absolute inset-0 rounded-lg" style={{ background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.4) 100%)' }} />
           </div>
         </div>
+        </div>
       </div>
     </div>
   );
@@ -232,6 +258,7 @@ export function MultiMonitor({
             muted={timeline.id !== activeTimeline}
             size="small"
             className="h-full w-full"
+            loop={true}
           />
           
           {/* Timeline Label */}

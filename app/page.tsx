@@ -296,7 +296,7 @@ export default function ParallelWorldsViewer() {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.4 }}
-                      className="flex h-full w-full max-w-5xl items-center justify-center"
+                      className="flex h-full w-full max-w-5xl items-center justify-center overflow-hidden"
                     >
                       <SingleMonitor
                         videoRef={videoRefs[activeTimeline]}
@@ -306,7 +306,7 @@ export default function ParallelWorldsViewer() {
                         muted={audioManager.isMuted}
                         onPlayPause={togglePlayPause}
                         onVideoEnded={handleVideoEnded}
-                        className="h-full w-full max-h-full"
+                        className="h-full w-full max-h-full max-w-full"
                         isZapping={isZapping}
                         zappingFromColor={zappingFromColor}
                         zappingToColor={zappingToColor}
