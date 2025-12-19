@@ -118,7 +118,6 @@ export function SingleMonitor({
         >
         <ScreenFrameSVG 
           className="w-full h-full" 
-          preserveAspectRatio="xMidYMid meet"
         />
         
         {/* Video Screen Area - positioned relative to 360x231 base */}
